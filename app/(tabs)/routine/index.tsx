@@ -8,6 +8,7 @@ import {
   HStack,
   Badge,
   Button,
+  ButtonText,
   ButtonIcon,
   Actionsheet,
   ActionsheetContent,
@@ -20,34 +21,55 @@ import {
   useToast,
   EditIcon,
   TrashIcon,
-  BadgeText
+  BadgeText,
+  PlayIcon
 } from '@gluestack-ui/themed';
 import { useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { ExerciseContext } from '../../Context/ExerciseContext';
+import { RoutineContext } from '../../Context/RoutineContext';
+import { ExerciseContext } from '@/app/Context/ExerciseContext';
 import { CustomHeader } from '../../Components/CustomHeader';
 
-export default function ExercicesScreen() {
+export default function RoutinesScreen() {
   const navigation = useNavigation();
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedExercise, setSelectedExercise] = useState(null);
-
+  const { exercises } = useContext(ExerciseContext);
+  const { routines, deleteRoutine } = useContext(RoutineContext);
   const toast = useToast();
-  const { exercises, deleteExercise } = useContext(ExerciseContext);
 
-  const handleDeleteExercise = (id) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [selectedRoutine, setSelectedRoutine] = useState(null);
+
+  const getExerciseName = (exerciseId) => {
+    const exercise = exercises.find((e) => e.id === exerciseId);
+    return exercise ? exercise.name : 'Exercice inconnu';
+  };
+
+  const openMenu = (routine) => {
+    setSelectedRoutine(routine);
+    setIsMenuOpen(true);
+  };
+
+  const closeMenu = () => {
+    setIsMenuOpen(false);
+  };
+
+  const handleDeleteRoutine = (id) => {
     Alert.alert(
-      "Supprimer l'exercice",
-      "Êtes-vous sûr de vouloir supprimer cet exercice ?",
+      'Supprimer la routine',
+      'Êtes-vous sûr de vouloir supprimer cette routine ?',
       [
-        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Annuler',
+          style: 'cancel',
+        },
         {
           text: 'Supprimer',
           style: 'destructive',
           onPress: () => {
-            deleteExercise(id);
+            deleteRoutine(id);
+            closeMenu();
             toast.show({
-              description: 'Exercice supprimé avec succès.',
+              description: 'Routine supprimée avec succès.',
               status: 'success',
               placement: 'top',
             });
@@ -58,21 +80,8 @@ export default function ExercicesScreen() {
     );
   };
 
-  const handleEditExercise = (id) => {
-    navigation.navigate('edit', { exerciseId : id });
-  };
-
-  const openMenu = (exercise) => {
-    setSelectedExercise(exercise);
-    setIsOpen(true);
-  };
-
-  const closeMenu = () => {
-    setIsOpen(false);
-  };
-
-  const renderExerciseCard = ({ item }) => (
-    <TouchableOpacity onPress={() => navigation.navigate('show', { id: item.id })}>
+  const renderRoutineCard = ({ item }) => (
+    <TouchableOpacity>
       <Box borderWidth={1} borderColor="$coolGray300" borderRadius="$md" p="$3" mb="$3">
         <VStack space="md">
           <HStack justifyContent="space-between" alignItems="center">
@@ -86,12 +95,16 @@ export default function ExercicesScreen() {
             </Button>
           </HStack>
           <HStack space="md" flexWrap="wrap">
-            {item.muscleGroups.map((group, key) => (
-              <Badge key={key} borderRadius="$md" p={3} action='info'>
-                <BadgeText>{group}</BadgeText>
+            {item.exercises.map((exercise) => (
+              <Badge key={exercise.exerciseId} borderRadius="$md" p={3} action='info'>
+                <BadgeText>{getExerciseName(exercise.exerciseId)}</BadgeText>
               </Badge>
             ))}
           </HStack>
+          <Button onPress={() => navigation.navigate('workout', { screen: 'new', params: { routineId: item.id } })}>
+            <ButtonIcon as={PlayIcon} mr={5} />
+            <ButtonText>Commencer la routine</ButtonText>
+          </Button>
         </VStack>
       </Box>
     </TouchableOpacity>
@@ -100,26 +113,26 @@ export default function ExercicesScreen() {
   return (
     <>
       <CustomHeader
-        title={{ text: 'Exercices' }}
+        title={{ text: 'Routines' }}
         right={{ icon: 'add', action: () => navigation.navigate('new') }}
       />
       <Box flex={1} p="$5">
         <FlatList
-          data={exercises}
-          renderItem={renderExerciseCard}
+          data={routines}
+          renderItem={renderRoutineCard}
           keyExtractor={(item) => item.id}
         />
-        <Actionsheet isOpen={isOpen} onClose={closeMenu}>
+        <Actionsheet isOpen={isMenuOpen} onClose={closeMenu}>
           <ActionsheetBackdrop />
           <ActionsheetContent>
             <ActionsheetDragIndicatorWrapper>
               <ActionsheetDragIndicator />
             </ActionsheetDragIndicatorWrapper>
-            <ActionsheetItem onPress={() => { handleEditExercise(selectedExercise?.id); closeMenu(); }}>
+            <ActionsheetItem onPress={() => { navigation.navigate('edit', { routineId: selectedRoutine?.id }); closeMenu(); }}>
               <ActionsheetIcon className="stroke-background-700" as={EditIcon} />
               <ActionsheetItemText>Modifier</ActionsheetItemText>
             </ActionsheetItem>
-            <ActionsheetItem onPress={() => { handleDeleteExercise(selectedExercise?.id); closeMenu(); }}>
+            <ActionsheetItem onPress={() => { handleDeleteRoutine(selectedRoutine?.id); closeMenu(); }}>
               <ActionsheetIcon className="stroke-background-700" as={TrashIcon} />
               <ActionsheetItemText>Supprimer</ActionsheetItemText>
             </ActionsheetItem>

@@ -1,10 +1,5 @@
-import React from 'react';
-import { View, Text } from 'react-native';
+import { Redirect } from 'expo-router';
 
-export default function HomeScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <Text>Menu</Text>
-    </View>
-  );
+export default function Index() {
+  return <Redirect href="/workout" />;
 }

@@ -1,57 +1,105 @@
-// ExerciseContext.js
+//ExerciseContext.tsx
 import React, { createContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { db } from '../firebaseConfig'; // Importez la configuration Firebase
+import { getDocs, collection, onSnapshot, addDoc, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { Exercise } from '../types/interfaces';
 
 export const ExerciseContext = createContext();
 
 export const ExerciseProvider = ({ children }) => {
-  const [exercises, setExercises] = useState([]);
 
-  // Charger les exercices depuis AsyncStorage au démarrage
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const exercisesRef = collection(db, 'exercises');
+
+  // Charger les exercices initialement
   useEffect(() => {
-    const loadExercises = async () => {
+    const loadInitialExercises = async () => {
       try {
-        const savedExercises = await AsyncStorage.getItem('exercises');
-        if (savedExercises) {
-          setExercises(JSON.parse(savedExercises));
-        }
+        const querySnapshot = await getDocs(exercisesRef);
+        const loadedExercises = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setExercises(loadedExercises);
+        setError(null);
       } catch (error) {
-        console.error('Erreur lors du chargement des exercices :', error);
+        console.error('Erreur lors du chargement initial des exercices :', error);
+        setError('Erreur lors du chargement des exercices. Veuillez réessayer.');
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadExercises();
+    loadInitialExercises();
   }, []);
 
-  // Sauvegarder les exercices dans AsyncStorage
-  const saveExercises = async (exercises) => {
+  // Écouter les changements en temps réel
+  useEffect(() => {
+    const unsubscribe = onSnapshot(
+      exercisesRef,
+      (querySnapshot) => {
+        const loadedExercises = [];
+        querySnapshot.forEach((doc) => {
+          loadedExercises.push({
+            id: doc.id,
+            ...doc.data(),
+          });
+        });
+        setExercises(loadedExercises);
+        setError(null);
+      },
+      (error) => {
+        console.error('Erreur lors de l\'écoute des exercices :', error);
+        setError('Erreur lors de la mise à jour des exercices. Veuillez réessayer.');
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Ajouter un nouvel exercice
+  const addExercise = async (exercise: Exercise) => {
     try {
-      await AsyncStorage.setItem('exercises', JSON.stringify(exercises));
+      await addDoc(exercisesRef, exercise)
+      // const newExercise = { id: newDocRef.id, ...exercise };
+      // setExercises([...exercises, newExercise]);
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde des exercices :', error);
+      console.error('Erreur lors de l\'ajout de l\'exercice :', error);
     }
   };
 
-  // Ajouter un nouvel exercice
-  const addExercise = (exercise) => {
-    const newExercises = [...exercises, exercise];
-    setExercises(newExercises);
-    saveExercises(newExercises); // Sauvegarder dans AsyncStorage
+  // Supprimer un exercice
+  const deleteExercise = async (id: string) => {
+    try {
+      const exerciseDoc = doc(exercisesRef, id);
+      await deleteDoc(exerciseDoc);
+    } catch (error) {
+      console.error('Erreur lors de la suppression de l\'exercice :', error);
+    }
   };
 
-  const deleteExercise = (id) => {
-    const newExercises = exercises.filter((exercise) => exercise.id !== id);
-    setExercises(newExercises);
-    saveExercises(newExercises); // Mettre à jour AsyncStorage
+  // Récupérer un exercice par son ID
+  const getExercise = (id: string) => {
+    return exercises.find((exercise) => exercise.id === id);
   };
 
-  const getExercise = (id) => {
-    return exercises.filter((exercise) => exercise.id == id)[0];
+  // Mettre à jour un exercice
+  const updateExercise = async (exercise: Exercise) => {
+    try {
+      const exerciseDoc = doc(exercisesRef, exercise.id);
+      await updateDoc(exerciseDoc, exercise);
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de l\'exercice :', error);
+    }
   };
-  
-  // Ajoutez deleteExercise au contexte
+
   return (
-    <ExerciseContext.Provider value={{ exercises, addExercise, deleteExercise, getExercise }}>
+    <ExerciseContext.Provider
+      value={{ exercises, addExercise, deleteExercise, getExercise, updateExercise }}
+    >
       {children}
     </ExerciseContext.Provider>
   );

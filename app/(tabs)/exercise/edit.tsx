@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { TouchableOpacity } from 'react-native';
 import {
   Box,
@@ -19,18 +19,32 @@ import {
   ScrollView,
   AlertCircleIcon,
 } from '@gluestack-ui/themed';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useLocalSearchParams } from 'expo-router';
 import { ExerciseContext } from '../../Context/ExerciseContext';
 import { CustomHeader } from '../../Components/CustomHeader';
 import { Exercise } from '../../types/interfaces'; // Importer l'interface Exercise
 
-export default function CreateExerciseScreen() {
+export default function UpdateExerciseScreen() {
+  const { exerciseId } = useLocalSearchParams(); // Récupérer l'EXERCISEID de l'exercice depuis l'URL
   const [exerciseName, setExerciseName] = useState('');
   const [selectedMuscleGroups, setSelectedMuscleGroups] = useState<string[]>([]); // Typé comme un tableau de string
   const [errors, setErrors] = useState<{ [key: string]: string }>({}); // Typé comme un objet avec des clés string et des valeurs string
-  const { addExercise } = useContext(ExerciseContext);
+  const { getExercise, updateExercise } = useContext(ExerciseContext);
   const toast = useToast();
   const navigation = useNavigation();
+
+
+  // Charger les données de la exercise si on est en mode modification
+  useEffect(() => {
+    if (exerciseId) {
+      const exercise = getExercise(exerciseId);
+      if (exercise) {
+        setExerciseName(exercise.name);
+        setSelectedMuscleGroups(exercise.muscleGroups);
+      }
+    }
+  }, [exerciseId, getExercise]);
+
 
   const muscleGroups = [
     'Abdominaux',
@@ -60,19 +74,20 @@ export default function CreateExerciseScreen() {
   };
 
   // Créer un nouvel exercice
-  const handleCreateExercise = () => {
+  const handleUpdateExercise = () => {
     if (validateForm()) {
-      const newExercise: Exercise = {
+      const updatedExercise: Exercise = {
+        id: exerciseId,
         name: exerciseName,
         muscleGroups: selectedMuscleGroups,
         // Ajoutez d'autres champs si nécessaire (description, equipment, etc.)
       };
 
-      addExercise(newExercise); // Ajouter l'exercice via le contexte
+      updateExercise(updatedExercise); // Ajouter l'exercice via le contexte
       toast.show({
         render: () => (
           <Toast action="success" variant="solid">
-            <ToastTitle>Exercice ajouté avec succès.</ToastTitle>
+            <ToastTitle>Exercice mis à jour avec succès.</ToastTitle>
           </Toast>
         ),
       });
@@ -105,16 +120,16 @@ export default function CreateExerciseScreen() {
   return (
     <>
       <CustomHeader
-        title={{ text: 'Créer un exercice' }}
+        title={{ text: 'Modifier l\'exercice' }}
         left={{ text: 'Annuler', action: () => navigation.goBack() }}
-        right={{ text: 'Créer', action: handleCreateExercise }}
+        right={{ text: 'Mettre à jour', action: handleUpdateExercise }}
       />
 
       <Box flex={1} p="$5" justifyContent="center">
         <ScrollView>
           {/* Champ pour le nom de l'exercice */}
           <FormControl isInvalid={!!errors.exerciseName} mb="$5">
-          <FormControlLabel mb='$2'>
+            <FormControlLabel mb='$2'>
               <FormControlLabelText>Nom de l'exercice</FormControlLabelText>
             </FormControlLabel>
             <Input>
